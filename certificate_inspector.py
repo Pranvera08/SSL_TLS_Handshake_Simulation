@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 
 from cryptography import x509
@@ -7,7 +8,11 @@ from cryptography.x509.oid import ExtensionOID, NameOID
 BASE_DIR = Path(__file__).resolve().parent
 CERT_DIR = BASE_DIR / "certificates"
 LOG_DIR = BASE_DIR / "logs"
+EXPECTED_SERVER_NAME = "localhost"
 
+
+class CertificateValidationError(Exception):
+    pass
 
 def write_log(message: str) -> None:
     LOG_DIR.mkdir(exist_ok=True)
@@ -40,6 +45,21 @@ def get_dns_names(certificate: x509.Certificate) -> list[str]:
         return []
 
 
+def verify_validity_period(certificate: x509.Certificate) -> None:
+    now = datetime.now(timezone.utc)
+    if not (certificate.not_valid_before_utc <= now <= certificate.not_valid_after_utc):
+        raise CertificateValidationError("Certificate is expired or not yet valid.")
+
+
+def verify_server_identity(certificate: x509.Certificate) -> None:
+    common_name_valid = get_common_name(certificate) == EXPECTED_SERVER_NAME
+    dns_names = get_dns_names(certificate)
+    san_valid = EXPECTED_SERVER_NAME in dns_names
+
+    if not (common_name_valid or san_valid):
+        raise CertificateValidationError("Certificate identity does not match localhost.")
+
+
 def print_certificate_details(title: str, certificate: x509.Certificate) -> None:
     write_log(f"\n=== {title} ===")
     write_log(f"Subject CN: {get_common_name(certificate)}")
@@ -62,6 +82,14 @@ def main() -> None:
 
     print_certificate_details("Trusted CA Certificate", ca_certificate)
     print_certificate_details("Server Certificate", server_certificate)
+
+    write_log("\nVerification steps:")
+
+    verify_validity_period(server_certificate)
+    write_log("[OK] Certificate validity period is correct.")
+
+    verify_server_identity(server_certificate)
+    write_log("[OK] Certificate identity matches localhost.")
 
 
 if __name__ == "__main__":
