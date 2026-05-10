@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.x509.oid import ExtensionOID, NameOID
 
 
@@ -60,6 +62,22 @@ def verify_server_identity(certificate: x509.Certificate) -> None:
         raise CertificateValidationError("Certificate identity does not match localhost.")
 
 
+def verify_ca_signature(ca_certificate: x509.Certificate, server_certificate: x509.Certificate) -> None:
+    ca_public_key = ca_certificate.public_key()
+    if not isinstance(ca_public_key, rsa.RSAPublicKey):
+        raise CertificateValidationError("Trusted CA public key is not RSA.")
+
+    try:
+        ca_public_key.verify(
+            server_certificate.signature,
+            server_certificate.tbs_certificate_bytes,
+            padding.PKCS1v15(),
+            server_certificate.signature_hash_algorithm,
+        )
+    except InvalidSignature as exc:
+        raise CertificateValidationError("Server certificate signature is invalid.") from exc
+
+
 def print_certificate_details(title: str, certificate: x509.Certificate) -> None:
     write_log(f"\n=== {title} ===")
     write_log(f"Subject CN: {get_common_name(certificate)}")
@@ -77,19 +95,30 @@ def main() -> None:
     write_log("Certificate Inspector started.")
     write_log("Checking trusted CA and server certificate...")
 
-    ca_certificate = load_certificate("ca_cert.pem")
-    server_certificate = load_certificate("server_cert.pem")
+    try:
+        ca_certificate = load_certificate("ca_cert.pem")
+        server_certificate = load_certificate("server_cert.pem")
 
-    print_certificate_details("Trusted CA Certificate", ca_certificate)
-    print_certificate_details("Server Certificate", server_certificate)
+        print_certificate_details("Trusted CA Certificate", ca_certificate)
+        print_certificate_details("Server Certificate", server_certificate)
 
-    write_log("\nVerification steps:")
+        write_log("\nVerification steps:")
 
-    verify_validity_period(server_certificate)
-    write_log("[OK] Certificate validity period is correct.")
+        verify_validity_period(server_certificate)
+        write_log("[OK] Certificate validity period is correct.")
 
-    verify_server_identity(server_certificate)
-    write_log("[OK] Certificate identity matches localhost.")
+        verify_server_identity(server_certificate)
+        write_log("[OK] Certificate identity matches localhost.")
+
+        verify_ca_signature(ca_certificate, server_certificate)
+        write_log("[OK] Server certificate was signed by the trusted CA.")
+
+        write_log("\nResult: Server certificate is valid and trusted.")
+
+    except Exception as exc:
+        write_log(f"\nResult: Certificate verification failed: {exc}")
+
+
 
 
 if __name__ == "__main__":
