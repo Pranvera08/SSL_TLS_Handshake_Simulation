@@ -59,3 +59,38 @@ def require_type(message, expected_type):
     received_type = message.get("type")
     if received_type != expected_type:
         raise ValueError(f"Expected {expected_type}, received {received_type}")
+
+
+    def load_server_private_key():
+        key_path = CERT_DIR / "server_key.pem"
+    key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
+
+    if not isinstance(key, rsa.RSAPrivateKey):
+        raise TypeError("Server private key must be RSA.")
+
+    return key
+
+
+def load_server_certificate(tamper_cert=False):
+    certificate_path = CERT_DIR / "server_cert.pem"
+    certificate_pem = certificate_path.read_text(encoding="ascii")
+
+    if not tamper_cert:
+        return certificate_pem
+
+    original_certificate = x509.load_pem_x509_certificate(certificate_pem.encode("ascii"))
+    fake_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    # Krijohet nje certifikate e rreme per testim.
+    fake_certificate = (
+        x509.CertificateBuilder()
+        .subject_name(original_certificate.subject)
+        .issuer_name(original_certificate.issuer)
+        .public_key(original_certificate.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(original_certificate.not_valid_before_utc)
+        .not_valid_after(original_certificate.not_valid_after_utc)
+        .sign(private_key=fake_key, algorithm=hashes.SHA256())
+    )
+
+    return fake_certificate.public_bytes(serialization.Encoding.PEM).decode("ascii")
