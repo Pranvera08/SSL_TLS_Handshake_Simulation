@@ -149,3 +149,50 @@ def decrypt_message(session_key, payload):
     ciphertext = b64decode(payload["ciphertext"])
     plaintext = aesgcm.decrypt(nonce, ciphertext, None)
     return plaintext.decode("utf-8")
+
+def handle_client(conn, tamper_cert):
+    server_private_key = load_server_private_key()
+    certificate_pem = load_server_certificate(tamper_cert)
+
+    if tamper_cert:
+        write_log("Server is using a tampered certificate for testing.")
+
+    client_hello = receive_message(conn)
+    require_type(client_hello, "CLIENT_HELLO")
+    client_nonce = client_hello["nonce"]
+
+    write_log("SSL/TLS handshake initiated with client...")
+    write_log(f"Received Client Hello. Client nonce: {client_nonce}")
+
+    server_nonce = b64encode(os.urandom(16))
+    send_message(
+        conn,
+        "SERVER_HELLO",
+        version="TLS 1.3 simulated",
+        cipher_suite="TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        nonce=server_nonce,
+    )
+    write_log("Sent Server Hello.")
+
+    send_message(conn, "CERTIFICATE", certificate_pem=certificate_pem)
+    write_log("Sending server certificate...")
+
+    server_ecdh_private_key = ec.generate_private_key(ec.SECP256R1())
+    server_ecdh_public_pem = public_key_to_pem(server_ecdh_private_key.public_key())
+
+    signature_payload = (server_ecdh_public_pem + client_nonce + server_nonce).encode("utf-8")
+    signature = sign_server_key_exchange(server_private_key, signature_payload)
+
+    send_message(
+        conn,
+        "SERVER_KEY_EXCHANGE",
+        ecdh_public_key_pem=server_ecdh_public_pem,
+        signature=signature,
+    )
+    write_log("Sent Server Key Exchange.")
+
+    send_message(conn, "CERTIFICATE_REQUEST")
+    write_log("Sent Certificate Request.")
+
+    send_message(conn, "SERVER_HELLO_DONE")
+    write_log("Sent Server Hello Done.")
