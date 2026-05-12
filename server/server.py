@@ -131,3 +131,21 @@ def derive_session_key(shared_secret, client_nonce, server_nonce):
         info=b"ssl-tls-simulation-session-key",
     )
     return hkdf.derive(shared_secret)
+
+def encrypt_message(session_key, plaintext):
+    aesgcm = AESGCM(session_key)
+    nonce = os.urandom(12)
+    ciphertext = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
+
+    return {
+        "nonce": b64encode(nonce),
+        "ciphertext": b64encode(ciphertext),
+    }
+
+
+def decrypt_message(session_key, payload):
+    aesgcm = AESGCM(session_key)
+    nonce = b64decode(payload["nonce"])
+    ciphertext = b64decode(payload["ciphertext"])
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    return plaintext.decode("utf-8")
