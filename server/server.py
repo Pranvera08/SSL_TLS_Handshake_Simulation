@@ -94,3 +94,40 @@ def load_server_certificate(tamper_cert=False):
     )
 
     return fake_certificate.public_bytes(serialization.Encoding.PEM).decode("ascii")
+
+def public_key_to_pem(public_key):
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+
+
+def public_key_from_pem(public_key_pem):
+    public_key = serialization.load_pem_public_key(public_key_pem.encode("ascii"))
+
+    if not isinstance(public_key, ec.EllipticCurvePublicKey):
+        raise TypeError("ECDH public key expected.")
+
+    return public_key
+
+
+def sign_server_key_exchange(private_key, payload):
+    signature = private_key.sign(
+        payload,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH,
+        ),
+        hashes.SHA256(),
+    )
+    return b64encode(signature)
+
+
+def derive_session_key(shared_secret, client_nonce, server_nonce):
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=(client_nonce + server_nonce).encode("utf-8"),
+        info=b"ssl-tls-simulation-session-key",
+    )
+    return hkdf.derive(shared_secret)
