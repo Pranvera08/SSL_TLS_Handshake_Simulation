@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from importlib.resources import path
 from pathlib import Path
 
 from cryptography import x509
@@ -12,7 +11,6 @@ BASE_DIR = Path(__file__).resolve().parent
 CERT_DIR = BASE_DIR / "certificates"
 
 
-
 def write_private_key(path: Path, key: rsa.RSAPrivateKey) -> None:
     path.write_bytes(
         key.private_bytes(
@@ -22,8 +20,9 @@ def write_private_key(path: Path, key: rsa.RSAPrivateKey) -> None:
         )
     )
 
+
 def write_certificate(path: Path, certificate: x509.Certificate) -> None:
-path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+    path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
 
 
 def main() -> None:
@@ -42,7 +41,7 @@ def main() -> None:
         ]
     )
 
-  ca_cert = (
+    ca_cert = (
         x509.CertificateBuilder()
         .subject_name(ca_subject)
         .issuer_name(ca_subject)
@@ -67,7 +66,8 @@ def main() -> None:
         )
         .sign(private_key=ca_key, algorithm=hashes.SHA256())
     )
- server_subject = x509.Name(
+
+    server_subject = x509.Name(
         [
             x509.NameAttribute(NameOID.COUNTRY_NAME, "AL"),
             x509.NameAttribute(NameOID.ORGANIZATION_NAME, "SSL TLS Simulation Server"),
@@ -75,7 +75,7 @@ def main() -> None:
         ]
     )
 
-server_cert = (
+    server_cert = (
         x509.CertificateBuilder()
         .subject_name(server_subject)
         .issuer_name(ca_subject)
