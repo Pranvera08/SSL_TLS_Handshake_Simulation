@@ -99,3 +99,64 @@ def verify_server_certificate(certificate_pem):
         raise SecurityError("Server certificate signature is invalid.") from exc
 
     return server_certificate
+
+def public_key_to_pem(public_key):
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+
+def public_key_from_pem(public_key_pem):
+    public_key = serialization.load_pem_public_key(public_key_pem.encode("ascii"))
+    if not isinstance(public_key, ec.EllipticCurvePublicKey):
+        raise SecurityError("ECDH public key expected.")
+    return public_key
+
+def verify_server_key_exchange(certificate, ecdh_public_key_pem, client_nonce, server_nonce, signature_b64):
+    public_key = certificate.public_key()
+    if not isinstance(public_key, rsa.RSAPublicKey):
+        raise SecurityError("Server certificate public key is not RSA.")
+
+    try:
+        public_key.verify(
+            b64decode(signature_b64),
+            (ecdh_public_key_pem + client_nonce + server_nonce).encode("utf-8"),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH,
+            ),
+            hashes.SHA256(),
+        )
+    except InvalidSignature as exc:
+        raise SecurityError("Server Key Exchange signature is invalid.") from exc
+
+def derive_session_key(shared_secret, client_nonce, server_nonce):
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=(client_nonce + server_nonce).encode("utf-8"),
+        info=b"ssl-tls-simulation-session-key",
+    )
+    return hkdf.derive(shared_secret)
+
+def encrypt_message(session_key, plaintext):
+    aesgcm = AESGCM(session_key)
+    nonce = os.urandom(12)
+    ciphertext = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
+    return {
+        "nonce": b64encode(nonce),
+        "ciphertext": b64encode(ciphertext),
+    }
+
+def decrypt_message(session_key, payload):
+    aesgcm = AESGCM(session_key)
+    nonce = b64decode(payload["nonce"])
+    ciphertext = b64decode(payload["ciphertext"])
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    return plaintext.decode("utf-8")
+
+def transcript_hash(*parts):
+    digest = hashes.Hash(hashes.SHA256())
+    for part in parts:
+        digest.update(part.encode("utf-8"))
+    return b64encode(digest.finalize())
