@@ -160,3 +160,117 @@ def transcript_hash(*parts):
     for part in parts:
         digest.update(part.encode("utf-8"))
     return b64encode(digest.finalize())
+
+def main():
+    if not (CERT_DIR / "ca_cert.pem").exists():
+        print("CA certificate not found. Run first: py generate_cer.py")
+        sys.exit(1)
+
+    try:
+        write_log("Welcome to the SSL/TLS Handshake Simulation Client.")
+        write_log("Attempting to establish a secure connection with the server...")
+
+        with socket.create_connection((HOST, PORT), timeout=10) as sock:
+            client_nonce = b64encode(os.urandom(16))
+
+            send_message(
+                sock,
+                "CLIENT_HELLO",
+                version="TLS 1.3 simulated",
+                cipher_suites=["TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"],
+                nonce=client_nonce,
+            )
+            write_log("Client Hello sent.")
+
+            server_hello = receive_message(sock)
+            require_type(server_hello, "SERVER_HELLO")
+            server_nonce = server_hello["nonce"]
+            write_log(f"Server Hello received. Cipher suite: {server_hello['cipher_suite']}")
+
+            certificate_message = receive_message(sock)
+            require_type(certificate_message, "CERTIFICATE")
+            write_log("Server certificate received. Verifying...")
+
+            server_certificate = verify_server_certificate(certificate_message["certificate_pem"])
+            write_log("Server certificate is valid.")
+
+            server_key_exchange = receive_message(sock)
+            require_type(server_key_exchange, "SERVER_KEY_EXCHANGE")
+
+            verify_server_key_exchange(
+                server_certificate,
+                server_key_exchange["ecdh_public_key_pem"],
+                client_nonce,
+                server_nonce,
+                server_key_exchange["signature"],
+            )
+            write_log("Server Key Exchange signature verified.")
+
+            server_ecdh_public_key = public_key_from_pem(server_key_exchange["ecdh_public_key_pem"])
+
+            certificate_request = receive_message(sock)
+            require_type(certificate_request, "CERTIFICATE_REQUEST")
+            write_log("Certificate Request received.")
+
+            server_hello_done = receive_message(sock)
+            require_type(server_hello_done, "SERVER_HELLO_DONE")
+            write_log("Server Hello Done received.")
+
+            send_message(sock, "CLIENT_CERTIFICATE", mode="anonymous-demo-client")
+            write_log("Client Certificate message sent.")
+
+            client_ecdh_private_key = ec.generate_private_key(ec.SECP256R1())
+            client_ecdh_public_pem = public_key_to_pem(client_ecdh_private_key.public_key())
+
+            send_message(
+                sock,
+                "CLIENT_KEY_EXCHANGE",
+                ecdh_public_key_pem=client_ecdh_public_pem,
+            )
+            write_log("Client Key Exchange sent.")
+
+            shared_secret = client_ecdh_private_key.exchange(ec.ECDH(), server_ecdh_public_key)
+            session_key = derive_session_key(shared_secret, client_nonce, server_nonce)
+            write_log("Derived symmetric AES session key.")
+
+            send_message(sock, "CERTIFICATE_VERIFY", status="server-certificate-verified")
+            write_log("Certificate Verify sent.")
+
+            send_message(sock, "CHANGE_CIPHER_SPEC")
+            write_log("Change Cipher Spec sent.")
+
+            transcript = transcript_hash(
+                client_nonce,
+                server_nonce,
+                certificate_message["certificate_pem"],
+                server_key_exchange["ecdh_public_key_pem"],
+            )
+
+            send_message(sock, "FINISHED", transcript_hash=transcript)
+            write_log("Finished message sent.")
+
+            server_change_cipher_spec = receive_message(sock)
+            require_type(server_change_cipher_spec, "CHANGE_CIPHER_SPEC")
+
+            server_finished = receive_message(sock)
+            require_type(server_finished, "FINISHED")
+
+            if server_finished["transcript_hash"] != transcript:
+                raise SecurityError("Finished transcript hash mismatch.")
+
+            write_log("SSL/TLS handshake successful. Secure communication channel established.")
+
+            secure_payload = encrypt_message(session_key, "Pershendetje nga klienti!")
+            send_message(sock, "SECURE_DATA", payload=secure_payload)
+            write_log("Encrypted application data sent to server.")
+
+            secure_response = receive_message(sock)
+            require_type(secure_response, "SECURE_DATA")
+            plaintext_response = decrypt_message(session_key, secure_response["payload"])
+            write_log(f"Secure server response: {plaintext_response}")
+
+    except Exception as error:
+        write_log(f"Handshake failed: {error}")
+
+if __name__ == "__main__":
+    main()
