@@ -41,3 +41,29 @@ def main() -> None:
             x509.NameAttribute(NameOID.COMMON_NAME, "Demo University Trusted CA"),
         ]
     )
+
+  ca_cert = (
+        x509.CertificateBuilder()
+        .subject_name(ca_subject)
+        .issuer_name(ca_subject)
+        .public_key(ca_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=365))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                key_cert_sign=True,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                content_commitment=False,
+                crl_sign=True,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .sign(private_key=ca_key, algorithm=hashes.SHA256())
+    )
