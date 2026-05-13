@@ -20,6 +20,7 @@ LOG_DIR = BASE_DIR / "logs"
 HOST = "127.0.0.1"
 PORT = 8443
 
+
 def write_log(message):
     LOG_DIR.mkdir(exist_ok=True)
     with (LOG_DIR / "server_log.txt").open("a", encoding="utf-8") as file:
@@ -61,8 +62,8 @@ def require_type(message, expected_type):
         raise ValueError(f"Expected {expected_type}, received {received_type}")
 
 
-    def load_server_private_key():
-        key_path = CERT_DIR / "server_key.pem"
+def load_server_private_key():
+    key_path = CERT_DIR / "server_key.pem"
     key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
 
     if not isinstance(key, rsa.RSAPrivateKey):
@@ -94,6 +95,7 @@ def load_server_certificate(tamper_cert=False):
     )
 
     return fake_certificate.public_bytes(serialization.Encoding.PEM).decode("ascii")
+
 
 def public_key_to_pem(public_key):
     return public_key.public_bytes(
@@ -132,6 +134,7 @@ def derive_session_key(shared_secret, client_nonce, server_nonce):
     )
     return hkdf.derive(shared_secret)
 
+
 def encrypt_message(session_key, plaintext):
     aesgcm = AESGCM(session_key)
     nonce = os.urandom(12)
@@ -149,6 +152,7 @@ def decrypt_message(session_key, payload):
     ciphertext = b64decode(payload["ciphertext"])
     plaintext = aesgcm.decrypt(nonce, ciphertext, None)
     return plaintext.decode("utf-8")
+
 
 def handle_client(conn, tamper_cert):
     server_private_key = load_server_private_key()
@@ -235,8 +239,9 @@ def handle_client(conn, tamper_cert):
     send_message(conn, "SECURE_DATA", payload=response)
     write_log("Encrypted response sent to client.")
 
-    def main():
-        parser = argparse.ArgumentParser(description="SSL/TLS Handshake Simulation Server")
+
+def main():
+    parser = argparse.ArgumentParser(description="SSL/TLS Handshake Simulation Server")
     parser.add_argument("--tamper-cert", action="store_true", help="Send invalid certificate")
     args = parser.parse_args()
 
