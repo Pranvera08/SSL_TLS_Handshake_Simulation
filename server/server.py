@@ -196,3 +196,32 @@ def handle_client(conn, tamper_cert):
 
     send_message(conn, "SERVER_HELLO_DONE")
     write_log("Sent Server Hello Done.")
+
+    client_certificate = receive_message(conn)
+    require_type(client_certificate, "CLIENT_CERTIFICATE")
+    write_log("Received Client Certificate message.")
+
+    client_key_exchange = receive_message(conn)
+    require_type(client_key_exchange, "CLIENT_KEY_EXCHANGE")
+    client_ecdh_public_key = public_key_from_pem(client_key_exchange["ecdh_public_key_pem"])
+    write_log("Received Client Key Exchange.")
+
+    shared_secret = server_ecdh_private_key.exchange(ec.ECDH(), client_ecdh_public_key)
+    session_key = derive_session_key(shared_secret, client_nonce, server_nonce)
+    write_log("Derived symmetric session key.")
+
+    certificate_verify = receive_message(conn)
+    require_type(certificate_verify, "CERTIFICATE_VERIFY")
+    write_log("Received Certificate Verify.")
+
+    change_cipher_spec = receive_message(conn)
+    require_type(change_cipher_spec, "CHANGE_CIPHER_SPEC")
+    write_log("Received Change Cipher Spec.")
+
+    finished = receive_message(conn)
+    require_type(finished, "FINISHED")
+    write_log(f"Received Finished message: {finished['transcript_hash']}")
+
+    send_message(conn, "CHANGE_CIPHER_SPEC")
+    send_message(conn, "FINISHED", transcript_hash=finished["transcript_hash"])
+    write_log("Client has verified the certificate. Handshake complete.")
