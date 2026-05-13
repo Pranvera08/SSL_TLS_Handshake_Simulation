@@ -225,3 +225,12 @@ def handle_client(conn, tamper_cert):
     send_message(conn, "CHANGE_CIPHER_SPEC")
     send_message(conn, "FINISHED", transcript_hash=finished["transcript_hash"])
     write_log("Client has verified the certificate. Handshake complete.")
+
+    secure_data = receive_message(conn)
+    require_type(secure_data, "SECURE_DATA")
+    plaintext = decrypt_message(session_key, secure_data["payload"])
+    write_log(f"Encrypted message received and decrypted: {plaintext}")
+
+    response = encrypt_message(session_key, "Mesazhi u mor ne menyre te sigurt.")
+    send_message(conn, "SECURE_DATA", payload=response)
+    write_log("Encrypted response sent to client.")
