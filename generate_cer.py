@@ -67,3 +67,10 @@ def main() -> None:
         )
         .sign(private_key=ca_key, algorithm=hashes.SHA256())
     )
+ server_subject = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "AL"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "SSL TLS Simulation Server"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+        ]
+    )
