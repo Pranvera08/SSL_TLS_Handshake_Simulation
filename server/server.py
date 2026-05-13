@@ -234,3 +234,32 @@ def handle_client(conn, tamper_cert):
     response = encrypt_message(session_key, "Mesazhi u mor ne menyre te sigurt.")
     send_message(conn, "SECURE_DATA", payload=response)
     write_log("Encrypted response sent to client.")
+
+    def main():
+        parser = argparse.ArgumentParser(description="SSL/TLS Handshake Simulation Server")
+    parser.add_argument("--tamper-cert", action="store_true", help="Send invalid certificate")
+    args = parser.parse_args()
+
+    if not (CERT_DIR / "server_cert.pem").exists() or not (CERT_DIR / "server_key.pem").exists():
+        print("Certificates not found. Run first: py generate_cer.py")
+        sys.exit(1)
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind((HOST, PORT))
+            server_socket.listen(1)
+
+            write_log(f"Server started and listening for connections on port {PORT}...")
+            conn, address = server_socket.accept()
+
+            with conn:
+                write_log(f"Incoming connection from {address[0]}:{address[1]}")
+                handle_client(conn, args.tamper_cert)
+
+    except Exception as error:
+        write_log(f"Server error: {error}")
+
+
+if __name__ == "__main__":
+    main()
