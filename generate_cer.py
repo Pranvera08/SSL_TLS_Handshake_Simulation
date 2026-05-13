@@ -74,3 +74,51 @@ def main() -> None:
             x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
         ]
     )
+
+server_cert = (
+        x509.CertificateBuilder()
+        .subject_name(server_subject)
+        .issuer_name(ca_subject)
+        .public_key(server_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=90))
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(
+            x509.SubjectAlternativeName(
+                [
+                    x509.DNSName("localhost"),
+                    x509.DNSName("127.0.0.1"),
+                ]
+            ),
+            critical=False,
+        )
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                key_cert_sign=False,
+                key_encipherment=True,
+                data_encipherment=False,
+                key_agreement=False,
+                content_commitment=False,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .sign(private_key=ca_key, algorithm=hashes.SHA256())
+    )
+
+    write_private_key(CERT_DIR / "ca_key.pem", ca_key)
+    write_certificate(CERT_DIR / "ca_cert.pem", ca_cert)
+    write_private_key(CERT_DIR / "server_key.pem", server_key)
+    write_certificate(CERT_DIR / "server_cert.pem", server_cert)
+
+    print("Certificates generated successfully.")
+    print(f"CA certificate: {CERT_DIR / 'ca_cert.pem'}")
+    print(f"Server certificate: {CERT_DIR / 'server_cert.pem'}")
+
+
+if __name__ == "__main__":
+    main()
