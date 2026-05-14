@@ -78,6 +78,14 @@ def main() -> None:
         .sign(private_key=ca_key, algorithm=hashes.SHA256()) # Nënshkruhet me çelësin e vetë CA-së
     )
 
+    server_subject = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "AL"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "SSL TLS Simulation Server"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+        ]
+    )
+
     # 3. KRIJIMI I CERTIFIKATËS SË SERVERIT (E nënshkruar nga CA)
     # Përcaktimi i identitetit të Serverit (p.sh. localhost)
 
