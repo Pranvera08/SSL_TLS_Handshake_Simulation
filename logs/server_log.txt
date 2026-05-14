@@ -1,0 +1,18 @@
+Server started and listening for connections on port 8443...
+Incoming connection from 127.0.0.1:61781
+SSL/TLS handshake initiated with client...
+Received Client Hello. Client nonce: gAwNs9Oa9AKkzSyklLxayA==
+Sent Server Hello.
+Sending server certificate...
+Sent Server Key Exchange.
+Sent Certificate Request.
+Sent Server Hello Done.
+Received Client Certificate message.
+Received Client Key Exchange.
+Derived symmetric session key.
+Received Certificate Verify.
+Received Change Cipher Spec.
+Received Finished message: rLgQMoG1qBmLZdk6sJUel4mQAYeDyzWyhGc0EjprIio=
+Client has verified the certificate. Handshake complete.
+Encrypted message received and decrypted: Pershendetje nga klienti!
+Encrypted response sent to client.
