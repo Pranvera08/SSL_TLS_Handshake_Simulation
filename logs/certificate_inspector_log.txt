@@ -1,0 +1,24 @@
+Certificate Inspector started.
+Checking trusted CA and server certificate...
+
+=== Trusted CA Certificate ===
+Subject CN: Demo University Trusted CA
+Issuer: CN=Demo University Trusted CA,O=Demo University,C=AL
+Serial Number: 620730627847992306191082911454345849524967936942
+Valid From: 2026-05-13 19:27:37+00:00
+Valid To: 2027-05-14 19:27:37+00:00
+
+=== Server Certificate ===
+Subject CN: localhost
+Issuer: CN=Demo University Trusted CA,O=Demo University,C=AL
+Serial Number: 702797253181815100917960767858566944295999393297
+Valid From: 2026-05-13 19:27:37+00:00
+Valid To: 2026-08-12 19:27:37+00:00
+Subject Alternative Names: localhost, 127.0.0.1
+
+Verification steps:
+[OK] Certificate validity period is correct.
+[OK] Certificate identity matches localhost.
+[OK] Server certificate was signed by the trusted CA.
+
+Result: Server certificate is valid and trusted.

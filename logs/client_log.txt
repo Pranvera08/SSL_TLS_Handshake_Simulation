@@ -1,0 +1,18 @@
+Welcome to the SSL/TLS Handshake Simulation Client.
+Attempting to establish a secure connection with the server...
+Client Hello sent.
+Server Hello received. Cipher suite: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+Server certificate received. Verifying...
+Server certificate is valid.
+Server Key Exchange signature verified.
+Certificate Request received.
+Server Hello Done received.
+Client Certificate message sent.
+Client Key Exchange sent.
+Derived symmetric AES session key.
+Certificate Verify sent.
+Change Cipher Spec sent.
+Finished message sent.
+SSL/TLS handshake successful. Secure communication channel established.
+Encrypted application data sent to server.
+Secure server response: Mesazhi u mor ne menyre te sigurt.
